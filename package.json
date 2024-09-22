@@ -17,7 +17,10 @@
   },
   "dependencies": {
     "@clerk/clerk-expo": "^2.2.10",
+    "@expo/html-elements": "^0.4.2",
     "@expo/vector-icons": "^14.0.2",
+    "@gluestack-ui/button": "^1.0.7",
+    "@gluestack-ui/input": "^0.1.31",
     "@gluestack-ui/nativewind-utils": "^1.0.23",
     "@gluestack-ui/overlay": "^0.1.15",
     "@gluestack-ui/toast": "^1.0.7",
@@ -35,6 +38,7 @@
     "expo-status-bar": "~1.12.1",
     "expo-system-ui": "~3.0.7",
     "expo-web-browser": "~13.0.3",
+    "firebase": "^10.13.2",
     "nativewind": "4.0.36",
     "react": "18.2.0",
     "react-dom": "18.2.0",
