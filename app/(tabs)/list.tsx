@@ -1,16 +1,6 @@
-import {
-	View,
-	StyleSheet,
-	TextInput,
-	Button,
-	SafeAreaView,
-	FlatList,
-	TouchableOpacity,
-	Text,
-} from "react-native";
 import React, {useEffect, useState} from "react";
+import {View, SafeAreaView, FlatList, Pressable} from "react-native";
 import {FIRESTORE_DB} from "../../config/firebase";
-import {Ionicons, Entypo} from "@expo/vector-icons";
 import {
 	collection,
 	onSnapshot,
@@ -19,6 +9,19 @@ import {
 	updateDoc,
 	deleteDoc,
 } from "firebase/firestore";
+import {Box} from "@/components/ui/box";
+import {HStack} from "@/components/ui/hstack";
+import {Text} from "@/components/ui/text";
+import {VStack} from "@/components/ui/vstack";
+import {Input, InputField, InputIcon, InputSlot} from "@/components/ui/input";
+import {Button, ButtonIcon} from "@/components/ui/button";
+import {
+	AddIcon,
+	CheckCircleIcon,
+	CircleIcon,
+	Icon,
+	TrashIcon,
+} from "@/components/ui/icon";
 
 export interface Todo {
 	done: boolean;
@@ -27,42 +30,42 @@ export interface Todo {
 }
 
 const List = () => {
-	const [todos, setTodos] = useState<any[]>([]);
+	const [todos, setTodos] = useState<Todo[]>([]);
 	const [todo, setTodo] = useState("");
-	useEffect(() => {
-		const todoRef = collection(FIRESTORE_DB, "todos");
 
-		const subscriber = onSnapshot(todoRef, {
-			next: (snapshot) => {
-				const todos: any[] = [];
-				snapshot.docs.forEach((doc) => {
-					todos.push({
-						id: doc.id,
-						...doc.data(),
-					});
-				});
+	// useEffect(() => {
+	// 	const todoRef = collection(FIRESTORE_DB, "todos");
 
-				setTodos(todos);
-			},
-		});
+	// 	const subscriber = onSnapshot(todoRef, {
+	// 		next: (snapshot) => {
+	// 			const todos: Todo[] = [];
+	// 			snapshot.docs.forEach((doc) => {
+	// 				todos.push({
+	// 					id: doc.id,
+	// 					...doc.data(),
+	// 				} as Todo);
+	// 			});
 
-		// // Unsubscribe from events when no longer in use
-		return () => subscriber();
-	}, []);
+	// 			setTodos(todos);
+	// 		},
+	// 	});
+
+	// 	return () => subscriber();
+	// }, []);
+
 	const addTodo = async () => {
 		try {
-			const docRef = await addDoc(collection(FIRESTORE_DB, "todos"), {
+			await addDoc(collection(FIRESTORE_DB, "todos"), {
 				title: todo,
 				done: false,
 			});
 			setTodo("");
-			console.log("Document written with ID: ", docRef.id);
 		} catch (e) {
 			console.error("Error adding document: ", e);
 		}
 	};
 
-	const renderTodo = ({item}: any) => {
+	const renderTodo = ({item}: {item: Todo}) => {
 		const ref = doc(FIRESTORE_DB, `todos/${item.id}`);
 
 		const toggleDone = async () => {
@@ -74,98 +77,56 @@ const List = () => {
 		};
 
 		return (
-			<View style={styles.todoContainer}>
-				<TouchableOpacity onPress={toggleDone} style={styles.todo}>
-					{item.done && (
-						<Ionicons name="md-checkmark-circle" size={32} color="green" />
-					)}
-					{!item.done && <Entypo name="circle" size={32} color="black" />}
-					<Text style={styles.todoText}>{item.title}</Text>
-				</TouchableOpacity>
-				<Ionicons
-					name="trash-bin-outline"
-					size={24}
-					color="red"
-					onPress={deleteItem}
-				/>
-			</View>
+			<Box className="bg-red-400 p-3 mb-2 rounded-sm">
+				<HStack className="space-x-2 items-center">
+					<Pressable onPress={toggleDone} className="flex-1">
+						<HStack className="bg-red-400 space-x-2 items-center">
+							<Icon
+								as={item.done ? CheckCircleIcon : CircleIcon}
+								size="md"
+								className={item.done ? "text-green-500" : "text-black"}
+							/>
+							<Text
+								className={` ${item.done ? "line-through text-gray-400" : "text-black"}`}
+							>
+								{item.title}
+							</Text>
+						</HStack>
+					</Pressable>
+					<Pressable onPress={deleteItem}>
+						<Icon as={TrashIcon} size="sm" className="text-red-500" />
+					</Pressable>
+				</HStack>
+			</Box>
 		);
 	};
 
 	return (
-		<SafeAreaView>
-			<View style={styles.container}>
-				<View style={styles.form}>
-					<TextInput
-						style={styles.input}
+		<SafeAreaView className="flex-1  bg-gray-100">
+			<VStack className="space-y-4 p-4">
+				<Input variant="outline" size="md" className="px-2">
+					<InputField
 						placeholder="Add new todo"
-						onChangeText={(text) => setTodo(text)}
 						value={todo}
+						onChangeText={setTodo}
 					/>
-					<Button onPress={addTodo} title="Add Todo" disabled={todo === ""} />
-				</View>
+					<InputSlot onPress={addTodo} disabled={todo === ""}>
+						<Button size="sm">
+							<ButtonIcon as={AddIcon} />
+						</Button>
+					</InputSlot>
+				</Input>
 
-				{todos.length > 0 && (
-					<View>
-						<FlatList
-							data={todos}
-							renderItem={renderTodo}
-							keyExtractor={(todo) => todo.id}
-							// removeClippedSubviews={true}
-						/>
-					</View>
-				)}
-			</View>
+				{/* {todos.length > 0 && (
+					<FlatList
+						data={todos}
+						renderItem={renderTodo}
+						keyExtractor={(todo) => todo.id}
+					/>
+				)} */}
+			</VStack>
 		</SafeAreaView>
 	);
-	return (
-		<View style={styles.container}>
-			<View style={styles.form}>
-				<TextInput
-					style={styles.input}
-					placeholder="Add new todo"
-					onChangeText={(text: string) => setTodo(text)}
-					value={todo}
-				/>
-				<Button onPress={addTodo} title="Add Todo" disabled={todo === ""} />
-			</View>
-		</View>
-	);
 };
-
-const styles = StyleSheet.create({
-	container: {
-		marginHorizontal: 20,
-	},
-	form: {
-		marginVertical: 20,
-		flexDirection: "row",
-		alignItems: "center",
-	},
-	input: {
-		flex: 1,
-		height: 40,
-		borderWidth: 1,
-		borderRadius: 4,
-		padding: 10,
-		backgroundColor: "#fff",
-	},
-	todo: {
-		flexDirection: "row",
-		flex: 1,
-		alignItems: "center",
-	},
-	todoText: {
-		flex: 1,
-		paddingHorizontal: 4,
-	},
-	todoContainer: {
-		flexDirection: "row",
-		alignItems: "center",
-		backgroundColor: "#fff",
-		padding: 10,
-		marginVertical: 4,
-	},
-});
 
 export default List;

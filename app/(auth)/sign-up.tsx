@@ -1,90 +1,122 @@
-import * as React from "react";
-import {TextInput, Button, View} from "react-native";
-import {useSignUp} from "@clerk/clerk-expo";
+import {useClerkSignUp} from "@/hooks/useClerkSignUp";
 import {useRouter} from "expo-router";
+import React, {useCallback, useEffect, useState} from "react";
+import {Box} from "@/components/ui/box";
+import {Heading} from "@/components/ui/heading";
+import {VStack} from "@/components/ui/vstack";
+import {Text} from "@/components/ui/text";
+import {Input, InputField} from "@/components/ui/input";
+import {
+	Button,
+	ButtonIcon,
+	ButtonSpinner,
+	ButtonText,
+} from "@/components/ui/button";
+import {Center} from "@/components/ui/center";
+import {ArrowLeftIcon} from "lucide-react-native";
+import {ErrorModal} from "@/components/ErrorModal";
 
-export default function SignUpScreen() {
-	const {isLoaded, signUp, setActive} = useSignUp();
+export default function Page() {
+	const {signUpWithClerk, isLoaded} = useClerkSignUp();
 	const router = useRouter();
 
-	const [emailAddress, setEmailAddress] = React.useState("");
-	const [password, setPassword] = React.useState("");
-	const [pendingVerification, setPendingVerification] = React.useState(false);
-	const [code, setCode] = React.useState("");
+	const [emailAddress, setEmailAddress] = useState("");
+	const [password, setPassword] = useState("");
+	const [errorMessage, setErrorMessage] = useState<ErrorResponse>({
+		message: "",
+		details: "",
+	});
+	const [showErrorModal, setShowErrorModal] = useState(false);
+	const [isLoading, setIsLoading] = useState(false);
 
-	const onSignUpPress = async () => {
-		if (!isLoaded) {
-			return;
-		}
+	const onSignUpPress = useCallback(async () => {
+		if (!isLoaded) return;
 
+		setIsLoading(true);
 		try {
-			await signUp.create({
-				emailAddress,
-				password,
-			});
-
-			await signUp.prepareEmailAddressVerification({strategy: "email_code"});
-
-			setPendingVerification(true);
+			await signUpWithClerk(emailAddress, password);
+			// Navigate to the next screen or home screen after successful sign-up
+			router.replace("/");
 		} catch (err: any) {
-			// See https://clerk.com/docs/custom-flows/error-handling
-			// for more info on error handling
-			console.error(JSON.stringify(err, null, 2));
+			console.log("Unexpected error during sign-up:", err);
+			setErrorMessage(err);
+		} finally {
+			setIsLoading(false);
 		}
-	};
+	}, [emailAddress, password, isLoaded, signUpWithClerk, router]);
 
-	const onPressVerify = async () => {
-		if (!isLoaded) {
-			return;
+	useEffect(() => {
+		if (errorMessage.details) {
+			setShowErrorModal(true);
 		}
-
-		try {
-			const completeSignUp = await signUp.attemptEmailAddressVerification({
-				code,
-			});
-
-			if (completeSignUp.status === "complete") {
-				await setActive({session: completeSignUp.createdSessionId});
-				router.replace("/");
-			} else {
-				console.error(JSON.stringify(completeSignUp, null, 2));
-			}
-		} catch (err: any) {
-			// See https://clerk.com/docs/custom-flows/error-handling
-			// for more info on error handling
-			console.error(JSON.stringify(err, null, 2));
-		}
-	};
+	}, [errorMessage]);
 
 	return (
-		<View>
-			{!pendingVerification && (
-				<>
-					<TextInput
+		<Box className="flex-1 justify-center p-5 ">
+			<Box className="flex flex-row">
+				<Button
+					onPress={() => router.back()}
+					variant="link"
+					size="sm"
+					className="p-0"
+				>
+					<ButtonIcon as={ArrowLeftIcon} />
+					{/* ArrowLeftIcon is imported from 'lucide-react-native' */}
+					<ButtonText>Back to home</ButtonText>
+				</Button>
+			</Box>
+			<VStack className="pb-4" space="xs">
+				<Heading className="leading-[30px]">Create an account</Heading>
+				<Text className="text-sm">Sign up to get started with our app.</Text>
+			</VStack>
+			<VStack space="xl" className="py-2">
+				<Input>
+					<InputField
 						autoCapitalize="none"
 						value={emailAddress}
 						placeholder="Email..."
 						onChangeText={(email) => setEmailAddress(email)}
+						className="py-2"
 					/>
-					<TextInput
+				</Input>
+				<Input>
+					<InputField
 						value={password}
 						placeholder="Password..."
 						secureTextEntry={true}
-						onChangeText={(password) => setPassword(password)}
+						onChangeText={(pwd) => setPassword(pwd)}
+						className="py-2"
 					/>
-					<Button title="Sign Up" onPress={onSignUpPress} />
-				</>
-			)}
-			{pendingVerification && (
-				<>
-					<TextInput
-						value={code}
-						placeholder="Code..."
-						onChangeText={(code) => setCode(code)}
-					/>
-					<Button title="Verify Email" onPress={onPressVerify} />
-				</>
-			)}
-		</View>
+				</Input>
+			</VStack>
+			<VStack space="lg" className="pt-4">
+				<Button disabled={isLoading} size="sm" onPress={onSignUpPress}>
+					{isLoading ? <ButtonSpinner /> : <ButtonText>Sign Up</ButtonText>}
+				</Button>
+				<Box className="flex flex-row">
+					<Button
+						onPress={() => router.replace("/sign-in")}
+						variant="link"
+						size="sm"
+						className="p-0"
+					>
+						<ButtonText>Already have an account?</ButtonText>
+					</Button>
+				</Box>
+			</VStack>
+			<ErrorModal
+				isOpen={showErrorModal}
+				onClose={() => {
+					setShowErrorModal(false);
+					setErrorMessage({
+						message: "",
+						details: "",
+					});
+				}}
+				title={"Sign Up Error"}
+				errorMessage={errorMessage?.message}
+				detailsMessage={errorMessage?.details}
+			/>
+		</Box>
 	);
 }
