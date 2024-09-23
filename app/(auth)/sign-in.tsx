@@ -1,92 +1,140 @@
-import {useSignIn} from "@clerk/clerk-expo";
+import {isClerkAPIResponseError, useSignIn} from "@clerk/clerk-expo";
 import {Link, useRouter} from "expo-router";
 import {TextInput, View} from "react-native";
-import React from "react";
+import React, {useCallback, useEffect, useState} from "react";
 import {Box} from "@/components/ui/box";
 import {Heading} from "@/components/ui/heading";
 import {VStack} from "@/components/ui/vstack";
 import {Text} from "@/components/ui/text";
 import {Input, InputField} from "@/components/ui/input";
-import {Button, ButtonText, ButtonIcon} from "@/components/ui/button";
-import {Center} from "@/components/ui/center";
+import {
+	Button,
+	ButtonText,
+	ButtonIcon,
+	ButtonSpinner,
+} from "@/components/ui/button";
+
+import {useClerkSignIn} from "@/hooks/useClerkSignIn";
+import {ErrorModal} from "@/components/ErrorModal";
+import {ArrowLeftIcon} from "@/components/ui/icon";
 
 export default function Page() {
-	const {signIn, setActive, isLoaded} = useSignIn();
+	const {loginWithClerk, isLoaded} = useClerkSignIn();
 	const router = useRouter();
 
-	const [emailAddress, setEmailAddress] = React.useState("");
-	const [password, setPassword] = React.useState("");
+	const [emailAddress, setEmailAddress] = useState<string>("");
+	const [password, setPassword] = useState<string>("");
+	const [passwordVisible, setPasswordVisible] = useState<boolean>(false);
+	const [errorMessage, setErrorMessage] = useState<ErrorResponse>({
+		message: "",
+		details: "",
+	});
+	const [showErrorModal, setShowErrorModal] = useState<boolean>(false);
+	const [isLoading, setIsLoading] = useState<boolean>(false);
 
-	const onSignInPress = React.useCallback(async () => {
-		if (!isLoaded) {
-			return;
-		}
+	const onSignInPress = useCallback(async () => {
+		if (!isLoaded) return;
 
+		setIsLoading(true);
 		try {
-			const signInAttempt = await signIn.create({
-				identifier: emailAddress,
-				password,
-			});
-
-			if (signInAttempt.status === "complete") {
-				await setActive({session: signInAttempt.createdSessionId});
-				router.replace("/");
-			} else {
-				// See https://clerk.com/docs/custom-flows/error-handling
-				// for more info on error handling
-				console.error(JSON.stringify(signInAttempt, null, 2));
-			}
+			await loginWithClerk(emailAddress, password);
 		} catch (err: any) {
-			console.error(JSON.stringify(err, null, 2));
+			console.log("Unexpected error during sign-in:", err);
+			setErrorMessage(err);
+		} finally {
+			setIsLoading(false);
 		}
-	}, [isLoaded, emailAddress, password]);
+	}, [emailAddress, password]);
+
+	useEffect(() => {
+		if (errorMessage.details) {
+			setShowErrorModal(true);
+		}
+	}, [errorMessage]);
 
 	return (
-		<Center>
-			<Box className="p-5 max-w-96 border border-background-300 rounded-lg">
-				<VStack className="pb-4" space="xs">
-					<Heading className="leading-[30px]">Set new password</Heading>
-					<Text className="text-sm">
-						Almost done. Enter your new password and you are all set.
-					</Text>
-				</VStack>
-				<VStack space="xl" className="py-2">
-					<Input>
-						<InputField
-							autoCapitalize="none"
-							value={emailAddress}
-							placeholder="Email..."
-							onChangeText={(emailAddress) => setEmailAddress(emailAddress)}
-							className="py-2"
-						/>
-					</Input>
-					<Input>
-						<InputField
-							value={password}
-							placeholder="Password..."
-							secureTextEntry={true}
-							onChangeText={(password) => setPassword(password)}
-							className="py-2"
-						/>
-					</Input>
-				</VStack>
-				<VStack space="lg" className="pt-4">
-					<Button size="sm" onPress={onSignInPress}>
-						<ButtonText>Sign In</ButtonText>
-					</Button>
-					<Box className="flex flex-row">
-						<Button
-							onPress={() => router.replace("/sign-up")}
-							variant="link"
-							size="sm"
-							className="p-0"
-						>
-							{/* ArrowLeftIcon is imported from 'lucide-react-native' */}
-							<ButtonText>Don't have an account?</ButtonText>
-						</Button>
-					</Box>
-				</VStack>
+		<Box className="flex-1 justify-center p-5 ">
+			<Box className="flex flex-row">
+				<Button
+					onPress={() => router.back()}
+					variant="link"
+					size="sm"
+					className="p-0"
+				>
+					<ButtonIcon as={ArrowLeftIcon} />
+					{/* ArrowLeftIcon is imported from 'lucide-react-native' */}
+					<ButtonText>Back to home</ButtonText>
+				</Button>
 			</Box>
-		</Center>
+			<VStack className="pb-4" space="xs">
+				<Heading className="leading-[30px]">Set new password</Heading>
+				<Text className="text-sm">
+					Almost done. Enter your new password and you are all set.
+				</Text>
+			</VStack>
+			<VStack space="xl" className="py-2">
+				<Input>
+					<InputField
+						autoCapitalize="none"
+						value={emailAddress}
+						placeholder="Email..."
+						onChangeText={(emailAddress) => setEmailAddress(emailAddress)}
+						className="py-2"
+					/>
+				</Input>
+				<Input>
+					<InputField
+						value={password}
+						placeholder="Password..."
+						secureTextEntry={true}
+						onChangeText={(password) => setPassword(password)}
+						className="py-2"
+					/>
+				</Input>
+			</VStack>
+			<VStack space="lg" className="pt-4">
+				<Button disabled={isLoading} size="sm" onPress={onSignInPress}>
+					{isLoading ? <ButtonSpinner /> : <ButtonText>Sign In</ButtonText>}
+				</Button>
+				<Box className="flex flex-row">
+					<Button
+						onPress={() => router.replace("/sign-up")}
+						variant="link"
+						size="sm"
+						className="p-0"
+					>
+						{/* ArrowLeftIcon is imported from 'lucide-react-native' */}
+						<ButtonText>Don't have an account?</ButtonText>
+					</Button>
+				</Box>
+			</VStack>
+			<Box className="flex flex-row">
+				<Button
+					onPress={() => {
+						setEmailAddress("12345678@gmail.com");
+						setPassword("12345678");
+					}}
+					variant="link"
+					size="sm"
+					className="p-0"
+				>
+					{/* ArrowLeftIcon is imported from 'lucide-react-native' */}
+					<ButtonText>Skip</ButtonText>
+				</Button>
+			</Box>
+			<ErrorModal
+				isOpen={showErrorModal}
+				onClose={() => {
+					setShowErrorModal(false);
+					setErrorMessage({
+						message: "",
+						details: "",
+					});
+				}}
+				title={"Sign In Error"}
+				errorMessage={errorMessage?.message}
+				detailsMessage={errorMessage?.details}
+			/>
+		</Box>
 	);
 }
